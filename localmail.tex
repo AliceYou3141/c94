@@ -1,0 +1,114 @@
+\chapter{MTAその1: ローカルのメールサーバでメールの遣り取り}
+
+\section{Postfixの基本操作}
+
+\subsection{Postfixを起動する}
+まずはPostfixを起動しましょう。Postfixが起動しているかどうかは、masterというプロセスが動いている華道家で確認することができます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+root # ps ax | grep master
+  675  -  Ss    0:00.06 /usr/local/libexec/postfix/master -w
+\end{lstlisting}
+
+masterというプロセスが動いていない場合は、Postfixがは起動していません。以下のようにPostfixを起動しましょう。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# postfixコマンドを使う場合
+postfix start
+
+# serviceコマンドがある環境
+# CentOS6やFreeBSDなど
+service postfix start
+
+# systemｄで管理されている場合(CentOS7はど）
+systemctl start postfix.service
+\end{lstlisting}
+
+\subsection{OS起動時にPostfixが起動するように設定する}
+
+OS起動の時点でPostfixが立ち上がるようにするには、このように設定します。
+
+CentOSの場合は、以下のようにコマンドで設定します。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# CentOS6の場合
+chkconfig postfix on
+
+# systemｄで管理されている場合(CentOS7はど）
+systemctl enable postfix.service
+\end{lstlisting}
+
+FreeBSDの場合は、/etc/rc.confに以下のように記入します。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+postfix_enable="YES"
+\end{lstlisting}
+
+\subsection{Postfixを停止する}
+Postfixを停止するときは、コマンドラインから、以下のように操作します。いずれも、Postfixの全ての動作を停止するコマンドです。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# postfixコマンドを使う場合
+postfix stop
+
+# serviceコマンドがある環境
+# CentOS6やFreeBSDなど
+service postfix stop
+
+# systemｄで管理されている場合(CentOS7はど）
+systemctl stop postfix.service
+\end{lstlisting}
+
+\subsection{設定ファイルの場所}
+
+Postfixの設定ファイルは、通常は/etc/postfixの下に置かれます。これはPostfixが標準のMTAとなっているOSの多くと、RPMでパッケージ管理をするLinuxのディストリビューションの場所です。
+
+FreeBSDでPortsやPackagesでPostfixを導入した場合は、設定ファイルは/usr/local/etc/postfixの下に置かれます。
+
+導入したばかりの状態では、このディレクトリには、およそ以下のファイルが含まれています。この章では、main.cfの必要な部分を書き換えます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
++-main.cf
++-master.cf
++-transport
+\end{lstlisting}
+
+\subsection{設定ファイルの再読込}
+Postfixの設定を変更した場合、その都度、設定ファイルを再読込させる必要があります。設定の再読込を行うときは、管理者のアカウントで、以下のように実行します。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# postfixコマンドを使う場合
+postfix reload
+
+# serviceコマンドがある環境
+# CentOS6やFreeBSDなど
+service postfix reload
+
+# systemｄで管理されている場合(CentOS7はど）
+systemctl reload postfix.service
+\end{lstlisting}
+
+\subsection{Postfixの再起動}
+設定変更の内容によっては、Postfixの再起動が必要となる場合があります。Postfix事態を再起動するときは、コマンドラインから、以下のように操作します。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# postfixコマンドを使う場合
+postfix restart
+
+# serviceコマンドがある環境
+# CentOS6やFreeBSDなど
+service postfix restart
+
+# systemｄで管理されている場合(CentOS7はど）
+systemctl restart postfix.service
+\end{lstlisting}
+
+\section{自分宛のメールを受け取るために}
+
+まず、Postfixが動いているホストにログインして、いまログインしているユーザ宛にメールを出し、受け取って見ましょう。そのためには、Postfix二、以下のような設定を行う必要があります。
+
+メールサーバの名前
+このメールサーバで受け取ってメールサーバに入れる宛先ドメイン
+どこのネットワークからPostfixへの接続を許可するか
+
+\subsection{どこからの接続をゆるすか}
