@@ -1,4 +1,50 @@
-\chapter{MTAその1: Postfixの基本操作と最初のメール}
+\chapter{MTAその1: Postfixの基本操作}
+
+\section{Postfixの設定ファイル}
+Postfixの設定ファイルには、インストール時に配置されるものと、sendmail互換のために使用されるものと二種類があります。設定ファイルにはいくつかありますが、本書で取り上げるものの概要を説明します。
+内容については、実際にそのファイルを書き換える必要が出たときに、あらためて説明します。
+
+\subsection{Postfix由来の設定ファイル}
+
+Postfixの設定ファイルは、通常は/etc/postfixの下に置かれます。これはPostfixが標準のMTAとなっているOSの多くと、RPMでパッケージ管理をするLinuxのディストリビューションの場所です。
+
+FreeBSDでPortsやPackagesでPostfixを導入した場合は、設定ファイルは/usr/local/etc/postfixの下に置かれます。
+
+導入したばかりの状態では、/etc/postfixもしくは、/usr/local/etc/postfixには、およそ以下のファイルが含まれています。これは、OS毎に提供されるパッケージによっては異なることがあります。この章では、main.cfの必要な部分を書き換えます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
++-main.cf
++-master.cf
++-transport
+\end{lstlisting}
+
+\paragraph{main.cf}
+main.cf（5）は、Postfixの動作を設定するファイルです。Postfixの基本的な設定は、main.cfに記述されます。
+
+\paragraph{master.cf}
+master.cf(5)は、Postfixのプロセスを制御する設定ファイルです。Postfix
+のプロセスを管理する、master(8)が参照します。
+
+\paragraph{tranxport}
+transport(5)は、メールの転送ルールを記述するファイルです。特定の宛先のメールを、決められたメールサーバに転送したいというようなときに使用します。
+transport(5)は通常、その内容をpostmap(1)コマンドでハッシュします。Postfixは、postmap(1)が生成した、transport.dbというファイルを参照します。
+
+
+\subsection{sendmail互換のための設定ファイル}
+Postfixはもともと、sendmailというレガシーなMTAと、コマンドレベルで互換性を保ちつつ、近代的な実装をするという目的で開発されました。そのため、sendmailと同じ形式の設定ファイルを使うようになって言い留ものがあります
+
+\paragraph{/etc/alias}
+メールのエイリアス(別名)を設定するファイルです。互換性のため、FreeBSDでも/etc/aliasとして置かれます。
+
+エイリアスは、あるメールアドレスの別名になるメールアドレスを設定して、エイリアスのアドレス宛に届いたメールは、そのエイリアスを別名として持つメールアドレスに転送されます。よくある使い方として、ホストの管理者のメールアドレスであるroot@localhostを、実際に管理を行っているユーザのメールアドレスのエイリアスとして設定します。そうすることで、root宛のメールが、管理者ユーザの持つメールアドレスに転送されます。
+
+\paragraph{/etc/mail/mailer.conf}
+FreeBSDなど、sendmailが標準インストールされるOSで、semdmail互換のために置かれるファイルです。CentOSなど、MTAが標準インストールされない環境には存在しません。
+
+FreeBSDにPostfixを導入すると、sendmail由来のnewaliases(1)、mailq(1)、sendmail(1)などのコマンドは、すべてmailwrapper(1)というラッパーへのリンクになります。
+
+mailwrapper(1)は、/etc/mail/mailer.confの内容を見て、sendmail(1)とmailq(1)とnewaliases(1)について、指定されたパスにあるバイナリを実行します。
+
 
 \section{Postfixの基本操作}
 
@@ -59,19 +105,7 @@ service postfix stop
 systemctl stop postfix.service
 \end{lstlisting}
 
-\subsection{設定ファイルの場所}
 
-Postfixの設定ファイルは、通常は/etc/postfixの下に置かれます。これはPostfixが標準のMTAとなっているOSの多くと、RPMでパッケージ管理をするLinuxのディストリビューションの場所です。
-
-FreeBSDでPortsやPackagesでPostfixを導入した場合は、設定ファイルは/usr/local/etc/postfixの下に置かれます。
-
-導入したばかりの状態では、このディレクトリには、およそ以下のファイルが含まれています。この章では、main.cfの必要な部分を書き換えます。
-
-\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
-+-main.cf
-+-master.cf
-+-transport
-\end{lstlisting}
 
 \subsection{設定ファイルの再読込}
 Postfixの設定を変更した場合、その都度、設定ファイルを再読込させる必要があります。設定の再読込を行うときは、管理者のアカウントで、以下のように実行します。
@@ -102,6 +136,8 @@ service postfix restart
 # systemｄで管理されている場合(CentOS7はど）
 systemctl restart postfix.service
 \end{lstlisting}
+
+\section{Postfixのログ}
 
 \section{自分宛のメールを受け取るために}
 
