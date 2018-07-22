@@ -1,0 +1,446 @@
+\chapter{同じメールサーバメールアドレスにメールを出そう}
+
+最初に、Postfixが動いているホストで、コマンドからメールを出して、自分でメールボックスを確認してみましょう。その過程で、メール設定の基本を学ぶことができます。
+
+そのために、自分兄手メールを送って、自分で確認をするための設定に着いて説明します。
+
+\section{自分宛のメールを受け取るために}
+
+自分宛のメールを受け取るには、どのような設定が必要になるのでしょうか。
+ここでは、最初にメールサーバの基本的な設定を行います。この設定を行うことで、メールサーバの上で送信したメールを、メールボックスで確認することができるようになります。
+
+\subsection{必要な設定の内容}
+
+まず、メールサーバが、そのドメイン宛のメールを、自分宛として扱うか、という設定が必要になります。そのために、メールサーバに、メールサーバ自信のドメイン名を教える必要があります。
+
+メールを送信するときはmail(1)やsendmail(1)というコマンドを使います。このコマンドは、同じサーバの上にあるメールサーバからメールを送信するためのコマンドです。
+メール送信の場合は、INETドメインソケットでＰｏｓｔｆｉｘに悦属します。これは、PostfixなどのMTAは、他のプロセスとの通信手段としてTCPを用いるためです。\footnote{master.cf(5)という設定ファイルをいじればUNIXドメインソケット経由で通信するプロセスを設定することもできます。これは、セキュリティ用途のソフトの通信を行う場合などに用いられます。}
+
+次に、届いたメールをどのように保存するかを設定します。Postfixには、sendmailに近い形式のMailboxと、qmail形式ともいわれるMaildirの二つの形式から選択することができます。
+
+最後は、メールサーバは、宛先のメールアドレスの情報をどこから取得するかを設定します。メールシステムで、メールアドレスが実在するメールアドレスなのか、何ｒ中の方法で確認しなければなりません。
+そして、メールアドレスが実在するなら、そのメールアドレス宛のメールは、ファイルシステムのどこに保存すれば良いのかという情報も必要です。これらを参照するための情報源を何にするかを設定します。
+
+メールサーバ上で自分宛のメールを送るだけでも、これだけの設定が必要です。これを、順番に説明していきます。
+
+
+
+\subsection{どの設定ファイルを使用するのか}
+
+この章で使用する設定ファイルは、main.cf(5)と、aliases(5)の二つです。それぞれ、パスは、/etc/postfix/main.cfと、/etc/aliasesになります。main.cf(5)のパスは/usr/local/etc/postfix/main.cfになります。
+今後も、ディレクトリpostfix/の場所を読み替えてください。
+
+\section*{}
+\begin{itembox}[l]{説明用ドメイン}
+サーバ名やドメイン名を使って説明を行うとき、example.comというように、exampleを使ったドメインがよく使われます。このドメイン名は、どこから出てきたのでしょうか。
+
+RFC2606、Reserved Top Level DNS Names\footnote{https://tools.ietf.org/html/rfc2606}で、説明用のドメイン名と、説明用のTLDが定義されています。example.com、example.net、example.orgの三つのドメインは、説明やマニュアルで使用する名前として予約されています。
+
+また、RFC2606では、説明屋マニュアルに使う、などの場合につかうことができる、TLDの予約についても記載があります。説明やマニュアル用途では、.examlpeというTLDを使うことができます。たとえば、uranohoshi.exampleやotonoki.exampleというドメイン名は、説明のために使うことができるということです。
+
+RFC2606は、RFC6761でアップデートされました。RFC6761では、説明用ドメイン名のDNSの扱いについての定義が追加されましたが、本書の範囲を超えるので、詳細には立ち入りません。
+
+\end{itembox}
+
+
+\section{main.cf(5)の書き方}
+main.cf(5)はどのように記述するのでしょうか。main.cf(5)は、ディレクティブと値を、イコールで繋ぐ形式になっています。例えば、myhostnameというディレクティブに値を設定するには、以下のように記述します。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+myhostname = mail.uranohoshi.example
+\end{lstlisting}
+
+あるディレクティブの値を、定義済のディレクティブの値をつかって定義することもできます。その他場合、値として使うディレクティブの前にドル記号を書きます。myoriginディレクティブの値として、先程定義したmyhostnameを使ってみましょう。
+
+今後説明でも、ディレクティブの値の場合は、ドル記号を記載します。\$myhostnameと記載した場合は、myhostnameディレクティブの値ということです。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+myorigin = 4myhostname
+\end{lstlisting}
+
+ひとつのディレクティブに複数の値を設定するときは、カンマ記号で値を連続して記載します。mynetworksディレクティブに、IPv4とIPv6それぞれのローカルループバックアドレスを定義しています。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+mynetworks = 127.0.0.1 . ::1
+\end{lstlisting}
+
+先頭に空白を書いた場合、それは前の行の続きになります。先頭に空白を置くことで、複数行に分かちがちすることが可能です。mydextinataionディレクティブに、三つの値を分かち書きして記載してみましょう。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+mydestination = localhost ,
+                localhost.$mydomain ,
+                $myhostname
+\end{lstlisting}
+
+行の先頭に\#記号を付けると、その行はコメントとして扱われ、無視されます。注釈を書いたり、コメントアウトするのに使います。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# 先頭文字が#ならコメント、次の行はコメントアウトとして無視される
+# myorigin = $mydomain
+\end{lstlisting}
+
+\section*{}
+\begin{itembox}[l]{本書で説明に使用する架空のドメイン名}
+本書では、RFC2606に準拠して、説明用TLDの.exampleを使用した、架空のドメイン名を説明に用います。これは、メールサーバの説明では、複数のドメイン名を例示する必要があり、これはexample.comとexample.netと言うような組み合わせでは、一見紛らわしいためです。
+
+本書では、架空のドメイン名として、以下に挙げる三つを使用します。
+
+\begin{itemize}
+ \item uranohoshi.example
+ \item otonoki.example
+ \item utx.example
+\end{itemize}
+\end{itembox}
+
+
+\section{メールサーバの名前を設定する}
+最初に、メールサーバの名前を設定して、どこ宛のメールを、そのメールサバ宛のメールとして扱うか、という設定をします。これは、指定したドメイン宛のメールが届いたら、そのアドレスに対応するメールボックスがあるか確認し、存在すればそのメールボックスに格納するという動作です。
+
+その参照に用いるFQDNやドメイン名を設定します。
+
+\subsection{メールサーバのホスト名}
+メールサーバのホスト名を設定します。この設定は、myhostnameディレクティブ二設定します。この名前は、他のホストとSMTPで通信するときに使用されます。このホスト名には、FQDNを記載してください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+myhostname = mail.uranohoshi.example
+\end{lstlisting}
+
+myhostnameディレクティブのデフォルト値として、hostname(1)で取得可能なホスト名が使用されます。
+
+\subsection{メールサーバのドメイン名}
+メールサーバのドメイン名を、mydomainディレクティブに設定します。このドメイン名は、メールサーバがメールを受信するドメイン名です。先程はサーバの名前でしたが、このディレクティブには、インターネットドメイン名を書くことに気をつけてください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+mydomain = uranohoshi.example
+\end{lstlisting}
+
+ここで設定したドメイン名は、そのドメイン宛のメールがそのメールサーバに届いたら、受信してメールボックスに入れる、という指定に鳴ります。ここに書いたらそのドメイン宛のメールが外から来るわけではないことにきを忘れないようにしてください。
+
+\subsection{メールサーバが出すメールのドメイン名部分}
+このメールサーバから出されるメールに付加されるドメイン名を指定します。例えば、発信元メールアドレスが指定されていないメールや、MAILER DAEMONが出すメールのドメインとして使用されます。通常は、\$myhostnameか\$mydomainのいずれかを使用します。
+
+その値は、myoriginディレクティブで指定します。デフォルトは、\$myhostnameの値となります。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# 使用する方をコメントアウト デフォルトは$myhostname
+#myorigin = $myhostname
+#myorigin = $mydomain
+\end{lstlisting}
+
+\section*{}
+\begin{itembox}[l]{メールアドレスにはどのような意味があるのか}
+メールアドレスは、たとえば、hanayo@otonoki.exampleや、tsubasa@mail.utx.exampleのように記述されています。いまさらではありますが、このメールアドレスの構造には、どのような意味があるのでしょうか。
+
+メールサーバは、元々は郵便局の私書箱のメタファーでした。@の右側は、いわば私書箱がある建物の住所です。この住所の部分がホスト名の場合は、私書箱があるホストそのものを直接指定していることになります。また、ドメイン名の場合は、そのドメインのメールサーバに私書箱がある、という意味になります。
+
+@の左側は、現在のSMTPのRFCである、RFC5321\footnote{https://www.ietf.org/rfc/rfc5321.txt}によると、
+メールボックスメイとして記載されています。ユーザアカウント名とではないことに気をつけてください。
+\end{itembox}
+
+
+\section{どこから、そしてどこ宛のメールを受け取るのか}
+
+つぎに、　このメールサーバはどこから、どこ宛の目どこから届いたどこ宛のメールを受け取るのか、それを設定します。
+
+\subsection{どのホストとSMTPで接続するのか}
+
+Postfixｘがどのネットワークインタフェイスから届いたメールを受け取るのかは、inet\_interfaceディレクティブで設定します。これは、どのホストとSMTP接続を許可するか、ということです。
+
+値がallの場合は、すべてのホストとのSMTP接続を許可します。
+
+\$myhostnameを指定した場合は、そのメールホストからのSMTP接続を許可します。この場合、\$myhostnameで指定されるホスト名は、名前解決ができなければなりません。用途は限られますが、IPアドレスやホスト名を指定して、接続先を限定することも可能です。
+
+inet\_interfaceを変更した場合は、Postfixを再起動してください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# 使用するものをコメントアウト、通常はallにしておく
+#inet_interface = all
+#inet_interface = $myhostname
+#inet_interface = $myhostname , localhost
+\end{lstlisting}
+
+
+\subsection{どこ宛のメールをメールボックスに入れるのか}
+メールサーバは、メールサーバに届くメールの内、どこ宛のメールをメールボックスに保存するのか、それを指定する必要があります。たとえば、、ユーザが送信しようとするメールが届いたときは、このメールサーバ上にあるメールアドレス宛ではない場合があります。このときは、他のメールサーバに転送しなければなりません。
+
+この設定は、mydestinationディレクティブで行います。Postfixに付属する元々の設定ファイルでは、以下のみつつが例示されています。一番上のものは、このメールサーバを指定して贈られてきたメールを受け取る、という設定です。また、下の二つは、\$mydomainを含むので、ドメイン宛のメールを受け取るときに設定します。それにくわえて、一番下の場合は、通常WebサーバやFTPサーバに使われるサーバ名でもメールを受け取る設定になっています。
+
+この段階では、このメールサーバを指定してに届いたメールを受信できればよいので、一番上の設定を有効にしておきましょう。今後、外からのメールを受け取るときに、mydestinationディレクティブを設定します。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# ここでは一番上を有効にする。
+mydestination = $myhostname, localhost.$mydomain, localhost
+#mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+#mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain,
+#       mail.$mydomain, www.$mydomain, ftp.$mydomain
+\end{lstlisting}
+
+どこのドメイン宛のメールをメールボックスに格納するかを最終的に決定するディレクティブが、relay\_domainsです。デフォルトでは、mydestinationをその値としています。なぜこのように二段構えになっているかというと、Postfixは、複数のドメインのメールサーバとなる、バーチャルドメインという機能があります。そのときに、複数のドメインそれぞれを宛先とするメールをメールボックスに格納する指定を可能とするためにです。バーチャルドメインについては、本書の範囲から外れるので詳細には立ち入りません。そのため、relay\_domainsの値はデフォルトのままで構いません。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# $mydestinationがデフォルト値
+relay_domains = $mydestination
+\end{lstlisting}
+
+
+\subsection{どこからきたメールを転送するのか}
+次に、どこから来たメールを転送するのかを設定しましょう。mynetworksで指定されたクライアントからSMTPで転送されたメールは、宛先に配送されます。
+
+これはどういうことかというと、\$mynetworksで指定されていないクライアントから送信されたメールは、このメールサーバ二あるメールボックスが最終的な配送先出ない限り、受け取りません。実質的には、\$mynetworksで指定されたネットワークに接続されたクライアントが、このメールサーバを利用してメールを送信できる、ということです。
+
+たとえば、192.168.1.0/24のネットワークアドレスを持つクライアントと、ローカルホストからメールを出したい場合は、以下のように設定してください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# メール送信に使うクライアントのネットワークアドレスを書く このアドレスは例
+mynetworks = 192.168.1.0/24, 127.0.0.0/8
+#mynetworks = $config_directory/mynetworks
+#mynetworks = hash:$config_directory/network_table
+\end{lstlisting}
+
+\section{Postfixの設定でのデータベース参照}
+さきほどのmynetworksの説明で、下の二行はネットワークアドレスが記載されていませんでした。これはどのような形式なのでしょうか。
+もういちど、その2行を引用してみましょう。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+#mynetworks = $config_directory/mynetworks
+#mynetworks = hash:$config_directory/network_table
+\end{lstlisting}
+
+1行目は、Postfixテーブル形式というデータベースファイルをを直接参照する設定です。二つ目は、アクセススキーマを指定して、データベースを参照する形式です。これらをまとめて、Postfixテーブル形式と呼んでいます。
+
+\subsection{テキスト形式のテーブル}
+
+最初の行のディレクティブの書き方は、Postfixの設定で、参照して成否を判定するものについて、ディレクティブの値として、ファイルのパスを書くことができます。ここで指定されたファイルが、Postfixテーブル形式でJ書かれたファイルであれば、Postfixはその内容を参照して、判定を行います。
+
+Postfixテーブル形式は、1行毎にひとつの情報を書いたルックアップテーブルです。左辺に比較する値、右辺に、その値と一致したときの戻り値を記載します。mynetworksの設定をPostfixテーブル形式で書いた場合、以下のような内容を持つテキストファイルになります。
+
+判定を行うテーブルでは、OKが記載されていると、一致する値は有効になります。また、REJECTと書いてあるものと一致すると、その結果はリジェクトされます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+192.168.1.0/24      OK
+127.0.0.1/8         OK
+*                   REJECT
+\end{lstlisting}
+
+\subsection{スキーマを指定してデータベースにアクセス}
+
+2行目は、テーブルの参照スキーマを指定したものです。値の先頭にhash:とついていれば、値として書かれたファイルパスのファイルに対応するハッシュテーブルになります。このハッシュテーブルは、postmap(1)コマンドで、Postfixテーブル形式ファイルから作られるファイルです。
+
+このハッシュテーブルは、記載されたファイルと同じパスに置かれ、拡張子として.dbがつきます。
+この例では、\$config\_directory/network\_table.dbというファイルパスのハッシュファイルを参照する、という指定になります。
+ハッシュは、元のテーブルを更新するごとにハッシュを作り直す必要があるという欠点があります。ですが、Postfixからの参照は、テキストファイルのテーブルより高速です。
+また、ローカルファイルをハッシュするデータベース形式にはhash:の他に、バークレーDB形式のスキーマdbm:もあります。
+
+\subsection{外部データベースの参照}
+
+スキーマは、ハッシュだけでなく、各種の外部データベースを参照するための指定もあります。たとえば、LDAPを参照するldap:スキーマ、mysqlデータベースを参照するmysql:などがありまｓ。
+このように、外部データベースを参照する場合は、パスとして指定したファイルには、テキスト形式で、そのデータベースにアクセスするための接続情報と、データベースで必要な情報を探すための探査構文となります。
+
+例として、ldap:スキーマで外部データベースであるLDAPツリーにアクセスするための設定ファイルを示します。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+server_host = localhost
+bind = no
+search_base = ou=users,ou=%d,dc=metaroot
+scope = one
+query_filter = (&(mail=%s)(mailRecieveEnable=allow))
+result_attribute = quota
+\end{lstlisting}
+
+
+\section*{}
+\begin{itembox}[l]{Postfixテーブルの再帰性}
+Postfixテーブルには、再帰性があります。これは、Postfixテーブルを参照して得られた結果が、Postfixテーブルのパスもしくはアクセススキーマであったときは、さらにそのPostfixテーブルを参照するというものです。
+
+この再帰検索は、最終的に何らかの結果が得られるか、参照する先が無くなるかするまで続けられます。この機能を利用して複雑な判定を行うこともできますが、その一方、パフォーマンスに影響があるので、あまり深い再帰はしない方が良いでしょう。
+
+\end{itembox}
+
+
+
+\section{メールの保存をどうするのか}
+メールサーバが受信したメールは、メールサーバのファイルシステムに保存されます。その保存形式として、Mailbox形式と、Maildir/形式があります。　どちらの形式を使うかは、home\_mailboxディレクティブで、以下のどちらかを選択します。デフォルトはMailboxです。
+
+Maildir/形式は、末尾のスラッシュまでが名称です。そのため、スラッシュも含めて記述してください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# どちらかを有効にする。デフォルトはMailbox
+#home_mailbox = Mailbox
+#home_mailbox = Maildir/
+\end{lstlisting}
+
+本省では、メールの確認をmail(1)で行える、Mailbox形式を使用します。
+
+\subsection{Mailbox}
+
+Mailbox形式は、メール保存用に設定した領域に、届いたメールをまとめて保存する方法です。Postfixでは、メールアドレスごとにひとつのファイルをつくり、メールはそのひとつのファイルに格納されます。メールサーバ上でまmail(1)で参照することができる、という利点と、ひとつのメールアドレスに対して1ファイルなので、ファイルシステムのメタデータ領域を消費しないという利点があります。
+
+その一方で、メールボックスへのメールの追加削除は、単一ファイルへの操作となるため、スプールのデータが破損する可能性を考慮する必要があります。
+
+Mailbox形式を使用するときは、mail\_spool\_directoryディレクティブで、メールスプールのパスを指定します。通常は、そのOSのファイル配置のデフォルトと一致するように初期値が設定されています。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+#mail_spool_directory = /var/mail
+#mail_spool_directory = /var/spool/mail
+\end{lstlisting}
+
+\subsection{Maildir/}
+Maildir/形式は、qmail方式ともひょばれるメールボックス形式です。メールはホームディレクトリに、1メール1ファイルの形式で置かれます。
+
+ユーザのホームディレクトリに1メール1ファイル形式で置かれるので、メールのバックアップが容易であるという利点があります。また、メールの内容参照だけなら、特別なコマンドは必要なく、テキストファイルとして操作することができます。
+
+その一方、保存するファイルの数が多くなるため、ファイルシステムのメタデータを消費すること、Courier-IMAPなｓど、Maildir/形式が硫黄のMRAを選択しなければ鳴りません
+また、Maildir/形式では、全てのメールボックスを持つメールアドレスについて、対応するホームディレクトリを指定する必要があります。
+本書で行う範囲の設定では、メールアドレスに対応するメールサーバのユーザを作成する必横臥あります。このユーザは、シェルにログインできる必要は有りませんが、ユーザデータベースにホームディレクトリのパスが記載されなければなりません。
+
+\section{存在するメールアドレスの情報をどこから得るのか}
+メールサーバがメールを受信するとき、そのメールサーバに存在するメールアドレスの一覧を何らかの形で参照しなければ鳴りません。その一覧は、どのような設定で取得しているのでしょうか。
+
+そのメールサーバが受け取るメールアドレスの一覧は、loczo\_recipient\_mapsディレク底部で設定します。デフォルトで、そのホストのローカルユーザデータベースと、次に説明するエイリアステーブルを談笑する設定となっています。
+先程説明したように、Maildir/形式ではメールアドレスとホームディレクトリの間のマッピングが必要になりますが、本書の設定の範囲では、local\_recipient\_mapsで指定された、ローカルのユーザデータベースに記載されいてるホームディレクトリ情報を用います。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# デフォルトは一番上で、ホストのローカルユーザデータベースと
+# エイリアステーブルを参照して使う
+#local_recipient_maps = unix:passwd.byname $alias_maps
+#local_recipient_maps = proxy:unix:passwd.byname $alias_maps
+#local_recipient_maps =
+\end{lstlisting}
+
+\section*{}
+\begin{itembox}[l]{外部ユーザデータベース}
+メールアドレスについても、外部データベースを使用することができます。その場合は、例えばldap:好き=間を使って、ユーザアカウントもしくはメールアカウントのデータベースを探査することができます。
+
+LDAPをメールアドレスの参照に使えるというのがどういうことがというと、商用LDAPデータベースのひとつである、MicrosoftのActive Directoryを使用することができるということです。Active Directoryを使用していればPostfixを組み合わせて使うことはあまりないかも知れませんが、外部データベースの利用形態のひとつとして覚えて置くとよいでしょう。
+\end{itembox}
+
+
+\section{エイリアスを登録する}
+先程のアカウントデータベースしてのトキに、locao\_recipient\_mapsの値として、｀\$alias\_mapsとうディレクティブの値が出てきました。このエイリアスとは何でしょうか。
+
+エイリアスは、メールアドレスの別名です。Postfixはエイリアステーブルに記載されたメールアドレスに対応するメールアドレスに、メールを転送します。この転送先は、このメールサーバが宛先出ないメールアドレスでも構いません。そのため、Postfixのエイリアスは、通常、設定ファイルの編集に管理者権限が必要なようになっています。
+
+エイリアスの定義ファイルは、デフォルトで、/etc/aliasesで、Postfixの設定ファイルとは異なる場所にあります。FreeBSDなど、/etc/mail/aliasesなど、別の場所にあるファイルへのリンクとなっていることがあります。
+
+これは、エイリアスが元々sendmailの機能の一つであり、sendmailのエイリアステーブルファイルを互換性のためにそのまま使用するためです。
+また、デフォルト設定のアクセススキーマがバークレイDB形式のdbm:となっていることも、sendmailと互換をとるために、このようになっています。
+
+Postfixteテーブル形式でエイリアスを定義することもできますが、外部データベースを参照するのでない場合は、このsendmail互換形式が使用されるこことがほとんどです。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# デフォルトはsemdmail互換形式
+#alias_maps = dbm:/etc/aliases
+\end{lstlisting}
+
+\subsection{エイリアスの定義}
+デフォルトのsendmail互換形式で、エイリアスを設定してみましょう。/etc/aliasesを、テキストエディタで編集します。ここでは、例として、末尾に以下のように追加してみましょう。
+
+sendmail互換エイリアスを使用する場合、その定義は、左辺にエイリアスのアドレス、右辺に実際に転送されるアドレスを書きます。
+また、Postfix形式テーブルと異なり、左辺の末尾にコロンが必要です。
+左辺は、必ずこのメールサーバで一旦受け取るメールアドレスになるので、｀＠から後は記載しません。これは、例えこのメールサーバに到着するメールであっても、このメール医サーバの\$mydestinationに書かれた宛先しか、エイリアスでは処理しないということでもあります。
+
+左辺と同様に、右辺も、転送先が同じメールサーバであれば、メールアドレスの@から後は省略可能です。また、複数のアカウントに同じ内容を同法するときは、コンマで区切って複数のメールアドレスを記載することができます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# $mydestination = mail.uranohoshi.example とする。
+
+# sendmail互換形式は左辺末尾にコロンがつく
+yohane:    yoshiko@mail.uranohoshi.example
+
+# このメールサーバ二メールボックスがあるメールアドレスに
+# 転送するなら、@以降は省略可能
+maru:      hanamaru
+
+# 右辺を複数にすることもできる。このメールサーバ以外に
+# 転送するときはメールアドレスは省略できない
+lily:      riko, sakurauchi@otonoki.example
+\end{lstlisting}
+
+/etc/aliasesの編集が終わったら、newaliases(1)を実行してください。引数はありません。このコマンドで、/etc/aliasesの実体と同じパスに、aliases.dbというファイルが作られます。
+newaliases(1)実行時は、
+
+先程のエイリアスが定義されている状態でyohane@mail.uranohoshi.example宛てにメールを出すと、実際にはyoshiko@mail.uranohoshi.exampleにメールが届きます。同様に、maru宛にメールを出すと、hanamaru@mail.uranohoshi.exampleにメールが届きます。
+
+lily宛てにメールを出した場合、riko@mail.uranohoshi.exampleと、sakurauchi@otonoki.exampleの二つのメールアドレスに、同じ内容のメールが転送されます。この例であるように、転送先は他のメールサーバでも構いません。
+
+\section{メールを送受信してみよう}
+ここまでの設定で、メールサーバの上から、そのメールサーバにメールボックスがあるアカウント向けに、メールを出すことができるようになりました。では、マズ自分宛にメールを出してみることにしましょう。
+
+\subsection{コマンドラインからメールを送受信する}
+
+まず、ユーザchikaが、自分自身にメールを出したという状況で、テストメール送受信の流れを説明しましょう。。mail(1)のオプション-sは、メールの件名(Subject)を指定するものです。ここでは、実際の操作画面を記載するため、コマンド実行時に朗吟プロンプトがある状態で掲載します。
+
+\begin{verbatim}
+chika@mail: % mail -s testmail chika@mail.uranohoshi.example
+\end{verbatim}
+
+メール本文を入力したら、一行あけて、その次の行にコロンを先頭に入れ、リターンを押すと、メールが送信されます。
+
+\begin{verbatim}
+chika@mail: % mail -s testmail chika@mail.uranohoshi.example
+test mail
+
+.
+EOT
+chika@mail: % 
+\end{verbatim}
+
+mail(1)を、引数無しでJッこうすると対話モードになります。もしメールスプールにメールが届いていれば、未読メールの一覧が表示されます。
+
+\begin{verbatim}
+chika@mail: % mail
+Mail version 8.1 6/6/93.  Type ? for help.
+"/var/mail/alice": 1 messages 1 new 4 unread
+>N  1 chika@mail.uranohoshi.e  Sun Jul 22 19:41  16/519   "test"
+&
+\end{verbatim}
+
+メールを読むには、メール一覧の番号を入れてください。ここでは1通だけなので、1を入力します。
+mail(1)の対話モードを終了するには、qを入力します。
+
+\begin{verbatim}
+& 1
+Message 1:
+From chika@mail.uranohoshi.example  Sun Jul 22 19:41:23 2018
+To: chika@mail.uranohoshi.example
+Subject: test
+Date: Sun, 22 Jul 2018 19:41:23 +0900 (JST)
+From: User Chika <chika@mail.uranohoshi.example>
+
+test
+
+
+& q
+Saved 1 message in mbox
+chika@mail: %
+\end{verbatim}
+
+
+\subsection{メール送受信ログ}
+先程の送受信の情報は、どのようにログに残っているのでしょうか。/var/log/maillogを確認します。ここでは、紙面の都合でログを折り返すので、説明の都合上、先頭に行番号を入れています。実際のメールログには、行番号は入りません。
+
+\paragraph{1~3行目}
+このメールは、ユーザchikaから、メールサーバmailに、chika@mail.uranohoshi.example宛のメールが送信されました。
+
+\paragraph{4行目}
+そのメールボックスがあるサーバは、mail.uranohoshi.exampleだったので、local(8)がメールを、chikaのメールボックスにメールが格納します。
+
+\paragraph{5行目}
+最後に、qmngr(8)が到着したメールを処理のためのキューから削除した、という過程のログです。
+
+\begin{verbatim}
+1: Jul 22 19:53:25 mail postfix/pickup[20528]: 46CF84967: 
+   uid=1001 from=<chika>
+2: Jul 22 19:53:25 mail postfix/cleanup[20593]: 46CF84967:
+   message-id=<20180722105325.46CF84967@mail.uranohoshi.example>
+3: Jul 22 19:53:25 mail postfix/qmgr[20529]: 46CF84967:  
+   from=<chika@mail.uranohoshi.example>, 
+   size=332, nrcpt=1 (queue active)
+4: Jul 22 19:53:25 mail postfix/local[20595]: 46CF84967:
+   to=<chika@mail.uranohoshi.example>, relay=local, delay=0.2,
+   delays=0.15/0.03/0/0.02, dsn=2.0.0, 
+   status=sent (delivered to mailbox)
+5: Jul 22 19:53:25 mail postfix/qmgr[20529]: 46CF84967: removed
+\end{verbatim}
+
+

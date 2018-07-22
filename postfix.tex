@@ -1,4 +1,4 @@
-\documentclass[b5j,11pt]{jsbook}
+\documentclass[b5j,12pt]{jsbook}
 
 \usepackage[dvipdfmx]{graphicx}
 \usepackage{makeidx}
@@ -9,6 +9,8 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{quotchap}
+\usepackage{ascmac}
+\usepackage{listings,jlisting}
 %\renewcommand{\baselinestretch}{0.5}
 %\renewcommand{\baselinestretch}{0.6}
 \renewcommand{\baselinestretch}{0.8}
@@ -23,14 +25,12 @@
 
 \include{gairon}
 \include{localmail}
-\include{transport}
-\include{MRA}
-\include{crypt}
-\include{hash}
-\include{signing}
-\include{pki}
-\include{protocol}
-\include{application}
+\include{sendlocal}
+\include{sendtoext}
+\include{recieve}
+\include{smtpauth}
+\include{courierinstall}
+\include{courierconfig}
 
 %\appendix
 %\include{appendix}

@@ -1,4 +1,133 @@
-\chapter{MTAその1: Postfixの基本操作}
+\chapter{MTAその1: Postfixのインストール基本操作}
+
+\section{コマンドと設定ファイルの名前の書き方}
+最初に、コマンド、デーモン、設定ファイルそれぞれの名前を区別するための書き方について、説明しておきましょう。
+本書では、コマンド名、設定ファイル名の区別を表すのに、man（1）で参照できる、UNIXマニュアルのセクション番号を使用します。この表記は、UNIX上で動くアプリケーションの説明では一般的なものです。
+
+\paragraph{セクション1: ユーザが実行できるコマンド}
+実行可能かつ、実行後にプロセスが終了するコマンドには、末尾に(1)を着けます。これは、ユーザが実行可能なコマンドのセクションが第1章であったことに由来します。実行に管理者権限が必要なコマンドも、セクション1二含まれます。
+
+Postfixに関連すするコマンドで例を挙げると、mail(1)と書かれている場合は、ユーザが実行可能なmailというコマンドであるという意味です。
+また、postfix(1)は、実行に管理者権限が必要なPostfixの実行コマンドのひとつです。
+
+\paragraph{セクション8: デーモンとなる実行ファイル}
+実行ファイルですが、コマンドラインから直接実行するのではなかったり、コマンドラインから起動するとシェルから切り離されてデーモンとして実行されるファイルには、末尾に(8)をつけます。これは、デーモンのマニュアルが、第8章であったことに由来します。
+
+Postfixに関連するものでは、master(8)は、postfix(1)コマンドから起動される、プロセス制御デーモンです。
+
+\paragraph{セクション5: 設定ファイル}
+主に/etc/postfixや/usr/local/etc/postfix以下に置かれる、テキストの設定ファイルは、末尾に(5)をつけます。これは、設定ファイルのマニュアルが第5章であったことに由来します。
+
+Postfixの設定ファイルでは、main.cf(5)は、Postfixの動作を制御する設定ファイルです。また、transport(5)は、Postfixおメール転送ルールを記述するテキストファイルになります。
+
+\section*{}
+\begin{itembox}[l]{MAILER DAEMON}
+Postfixをはじめとするメールサーバが、MAILER DAEMONという名前を使って、エラーなどの報告などをユーザに送ることがあります。先程セクション8の説明として出てきた「デーモン」がその読みです。では、デーモンとななんなのでしょうか。
+
+daemonとは、守護神、という意味を持つ単語です。UNIXでは、シェルから切り離されて動作し続けるプロセスのことをデーモンと呼びます。
+メールのために動作し続けるプロセスなので、MAILER DAEMONというわけです。けっして、めーらーだえもんさんという人が送っているわけでなありません。
+
+余談ですが、BSD系OSのマスコットであるデーモン君は、daemonをマスコットにしたものです。そのいかにもな外見から誤解されることも多いですが、悪魔ではなく神様の方です。
+
+\end{itembox}
+
+\section{Postfixのインストール}
+なにをするにも、まずはPostfixのインストールをする必要があります。最初に、ＯＳごとの導入方法を説明していきます。
+本書では、メールサーバの初心者をターゲットにしていますので、Postfixのインストールの方法として、OS標準のパッケージを利用するやりかたを説明します。
+
+\subsection{Red Hat Enterprise Linux/CentOS}
+Red Hat Enterprise Linux(RHEL)もしくは、そのクローンであるＣｅｎｔＯＳでは、Ｐｏｓｔｆｉｘが標準ＭＴＡとして扱われています。、そのため、インストール時にメール送信機能を含むインストールをすれば、Postfixがインストールに含まれています。
+ですが、最小限インストールなど、Postfixがインストールされていない可能性があります。以下のように、Ｐｏｓｔｆｉｘがインストールされているかをチェックしてください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+rpm -aq | grep -i postfix
+\end{lstlisting}
+
+postfixがインストールされていれば、Postfixという名前で始まるパッケージがインストールされています。如何に、CentOS7での実行例をしめします。この末尾に来るバージョン番号や名称は、環境によって異なることがあります。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+[root@example ~]# rpm -qa | grep -i postfix
+postfix-2.10.1-6.el7.x86_64
+\end{lstlisting}
+
+もし、このような結果が出ない場合は、Postfixはインストールされていません。以下のようにyumコマンドでインストールしてください。依存するパッケージがインストールされていなければ、そちらも一緒にインストールされます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+yum install postfix
+\end{lstlisting}
+
+\subsection{FreeBSD}
+FreeBSDでは、sendmailという、Postfixとは別のMTAが初期状態で入っています。RHEL/CentOSと異なり、初期インストール状態でMTAとしてsendmailが導入されます。そのため、Postfixを追加インストールした上で、MTAをPostfixに切替える、という手順が必要になります。
+
+Postfixがインストールされているかどうかは、FreeBSD-10以降は、pkg infoというコマンドを使って、以下のように確かめられます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+pkg info postfix
+\end{lstlisting}
+
+もいPostfixがインストールされていれば、このようにインストール情報が表示されます。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+root@fexample~ # pkg info postfix
+postfix-3.3.1_1,1
+Name           : postfix
+Version        : 3.3.1_1,1
+Installed on   : Sat Jul 21 16:49:12 2018 JST
+Origin         : mail/postfix
+Architecture   : FreeBSD:10:amd64
+Prefix         : /usr/local
+Categories     : ipv6 mail
+Licenses       : IPL10, EPL
+Maintainer     : ohauer@FreeBSD.org
+WWW            : http://www.postfix.org/
+Comment        : Secure alternative to widely-used Sendmail
+Options        : 以下略
+\end{lstlisting}
+
+
+postfixがインストールされていない場合は、以下のコマンドでインストールを行ってください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+pkg install postfix
+\end{lstlisting}
+
+このコマンドでインストールすると、依存するコンポーネントも一緒にインストールされます。また、先程説明したように、Postfixは標準MTAのsendmailから切替えて使う形になっています。そのため、インストールの最後に以下のように、Postfixを有効にするために、設定ファイルを書き換えるか質問されます。
+これは。Postfixが、sendmailの互換コマンドを含むため、sendmailと同じコマンドについては、sendmailとPostfixnおどちらを使うかという選択をするためです。
+yを押して、Postfixのコマンドを有効にしてください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+Would you like to activate Postfix in /usr/local/etc/mail/mailer.conf [n]?
+\end{lstlisting}
+
+その後で、sendmail(8)を起動させないようにするために、以下を/etc/periodic.confもしくは、/etc/periodic.conf.localに書き加えるようにメッセージが出ます。いずれかのファイルに追加してください。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+  daily_clean_hoststat_enable="NO"
+  daily_status_mail_rejects_enable="NO"
+  daily_status_include_submit_mailq="NO"
+  daily_submit_queuerun="NO"
+\end{lstlisting}
+
+
+
+\subsection{NetBSD}
+BSD系のOSでであるNetBSDでは、Postfixは標準MTAとなっています。NetBSDでも、MTAは基本システムインストール時に導入されます。そのため、追懐インストールの必要は有りません。
+
+\section*{}
+\begin{itembox}[l]{sendmailとsendmail(1)}
+
+Postfixには、メール送信コマンド度して、sendmail互換のsendmail(1)画ある、という説明をしました。では、semdmailと、sendmail(1)の関係はどんなものなのでしょうか。
+
+semdmailは、現在使用されているものでは、もっとも古いMTAです。プロダクトの名前ですが、付属するメール操作コマンドの名前が、sendmail(1)となっています。このコマンドは、実際にはmailq(1)やnewaliases(1)という、メンテナンスや設定に使用するコマンドの実態となっています。
+そのため、sendmail(1)にオプションをつけて実行することで、newaliases(1)やmailq(1)の動作をさせることも可能です。
+
+本書では、プロダクトとしてのsendmailを表すときは、末尾に(1)を着けず、sendmailと際します。sendmail(1)と記載するときは、sendmailコマンドです。
+また、大文字ではじまるＳｅｎｄｍａｉｌは、商用のバージョンとなります。
+
+Postfixはコマンドについてsendmailであるため、同様に、Postfix付属のsendmail(1)は、newaliases(1)やmailq(1)の実態になっています。
+
+\end{itembox}
+
 
 \section{Postfixの設定ファイル}
 Postfixの設定ファイルには、インストール時に配置されるものと、sendmail互換のために使用されるものと二種類があります。設定ファイルにはいくつかありますが、本書で取り上げるものの概要を説明します。
@@ -123,11 +252,14 @@ systemctl reload postfix.service
 \end{lstlisting}
 
 \subsection{Postfixの再起動}
-設定変更の内容によっては、Postfixの再起動が必要となる場合があります。Postfix事態を再起動するときは、コマンドラインから、以下のように操作します。
+設定変更の内容によっては、Postfixの再起動が必要となる場合があります。Postfixを再起動するときは、コマンドラインから、以下のように操作します。
+
+postfix(1)を使うときは、再起動を指示するサブコマンドが無いため、stopサブコマンドで一度Postfixを停止してから、startサブコマンドで起動します。
 
 \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
 # postfixコマンドを使う場合
-postfix restart
+postfix stop
+postfix start
 
 # serviceコマンドがある環境
 # CentOS6やFreeBSDなど
@@ -138,13 +270,24 @@ systemctl restart postfix.service
 \end{lstlisting}
 
 \section{Postfixのログ}
+Postfixのログは、通常は/var/log/maillogです。通常の設定で、ｓｙｓlogd(8)経由で、ファシリティMAIL>INFOでグが出リュオクされます。
 
-\section{自分宛のメールを受け取るために}
+/var/log/amillogは、Postfixだけでなく、Courier-IMAPもログを出力するファイルです。
 
-まず、Postfixが動いているホストにログインして、いまログインしているユーザ宛にメールを出し、受け取って見ましょう。そのためには、Postfix二、以下のような設定を行う必要があります。
+\subsection{Postfixからのログメッセージ}
+Postfixからのログ目セージは、タイムスタンプの後にプロセスの名前が書かれることで判別できます。たとえば、smtpdが出力したログ、は、以下のように記述されます。このログの例のメールサーバ名とIPアドレスは、説明用の架空のものです。
+このログは、サーバ名urajoの上で動いているPostfixの、メールを受信するプロセスであるsmtpd(8)が、他のメールサーバから接続されたことを記録しています。
 
-メールサーバの名前
-このメールサーバで受け取ってメールサーバに入れる宛先ドメイン
-どこのネットワークからPostfixへの接続を許可するか
+\begin{verbatim}
+Jul 21 01:09:26 urajo postfix/smtpd[38126]: connect from
+ mail.example.com.net[192.168.1.1]
+\end{verbatim}
 
-\subsection{どこからの接続をゆるすか}
+syslogd(8)の実装によて表現の違いが生ずることはありますが、メールログはおおよそ以下のようなフォーマットです。
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+タイムスタンプ ホスト名 プロセス名[プロセスID] イベント内容 接続ホスト
+\end{lstlisting}
+
+
+
