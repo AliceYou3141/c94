@@ -1,1 +1,199 @@
 \chapter{Sender Policy Framework}
+
+メールサーバから、メールをを他のメールサーバに転送しようとするとき、メールサーバの正当性を知らせる方法として、SPF(Sender Policy Flamework)があります。特に、海外のメールサーバで、送信ドメイン認証を行っていく動きがあり、また、DNSのTXTレコードに情報を追加するだけなので、DNSのレコード変更の権限があれば、比較的簡単に行うことができます。
+
+\section{SPFとはどんなもの}
+
+SPFは、IPアドレスベースのメール送信元認証方式です。現在では、Classic SPFや、SPF1.0とよばれることもあります。また、SPFを拡張した規格として、SenderIDと言う者が使用されています。SenderIDは、SPF?SenderIDと記載されたり、SPF2.0と書かれることもあります。
+また、両社を合わせてSPF/SenderIDと記載することもあります。
+
+メールを他のメールサーバに転送するメールサーバを運用する送信側は、DNSでSPF(Sender Policy Framework)と呼ばれる情報を公開します。この情報は、TXTレコードで公開されます。SPFはDNS問い合わせが可能であれば、誰でも参照することができます。たとえば、dig(1)を使って、SPFを参照するとこのようになります。紙面の関係で折り返していますが、実際には、1行で書かれています。
+
+\begin{verbatim}
+root@fmail: ~ % dig txt uranohoshi.example
+(略)
+;; ANSWER SECTION
+uranohoshi.example.   86400   IN      TXT
+     "v=spf1 ip4:xxx.xxx.xxx.xxx 
+      ip6:2001:db8::xxx:xxx:xxx:xxx -all"
+\end{verbatim}
+
+\subsection{SPFの信頼性}
+SMTPで他のホストから接続を受ける、メール受信側は、エンベローブの送信元メールアドレスからドメイン名を抽出します。次に、そのドメインのDNSからSPFレコードを取り出します。そして、SMTP接続してきたのホストのIPアドレスとSPFを比較し、一致すれば認証ができたものとします。
+
+このこおｔで判るように、SPFを設定してあるドメインのメールサーバについて、受信側がその接続を認める根拠が、送信元ドメインのDNSの管理者が認めているホストかどうか、ということにすぎません。SPFに記載されていることが、正しいメールサーバであることをあらわすわけではありません。
+SPFは、受信側で対応が必要ですし、権威DNSにエントリを設定していないドメインははまだまだ多く存在します。
+また、SPFをきちんと設定してメールを送信してあり、そこに情報が書かれているサーバからならメールを受け取ることになっているので、不正なメールを送ってくる側がドメインを取得し、SPFを設定してあれば、そのメールを防ぐ仕組みを、SPFだけで実現することはできません。
+
+\subsection{SenderID}
+
+先程名前が出たSenderIDとは、どのような規格なのでしょうか。
+SenderIDとは、マイクロソフトが提唱していたCaller IDという規格と、とSPFを合わせた規格です。SPFレコードについては、既存のSPFをそのまま使用します、
+
+SPFはエンベローブ情報を利用していましたが、SenderIDは、ヘッダ情報を利用します。SendierIDでは、ヘッダ情報のFrom:やSender:などから、Purported Responsible Address(PRA)というアドレスを生成します。このアドレスがDNSのSPFに記載されていれば、認証された者として扱います。
+
+以前のSenderIDは使用にライセンスが必要でした。現在では無料になっていますが、かつては、受信側がSenderIDで認証を行う場合は、ライセンス費用が発生しました。
+送信側は、単にSPF情報を出すだけなので、何もする必要は有りません。ですが、受信側がSenderIDをもとに送信元のチェックを行う場合は、判定ツールにライセンスを購入する必要がありました。
+
+\section{DNSにSPFを設定する}
+
+SPFは、DNSのTXTクエリタイプに、以下のような形で追加します。この例では、このSPFは、SFP1.0で記述され、192．168．100．1と192．168．100．2からメールが送信される可能性があると言うことを表します。そして、それ以外のホストからのメールは、認証できない場合がある、という意味です。
+
+\begin{verbatim}
+@     IN TXT "v=spf1 +ip4:192.168.100.1 +ip4:192.168.100.2 ~all"
+\end{verbatim}
+
+\subsection{SPFの記法}
+
+SPFレコードは、以下のように、TXTレコードに、バージョン情報の後に定義を並べていくかたちで記載します。
+
+\begin{verbatim}
+バージョン情報 定義1 定義2 …
+\end{verbatim}
+
+では、それぞれの要素は、どのように記述すれば良いのでしょうか。
+
+\subsubsection{バージョン情報}
+
+バージョン情報は、この情報がSPF準拠のものか、SenderIDの情報を含むのかを表します。v=のあとに、バージョン情報を記載します。
+
+\paragraph{SPF1.0}
+SFP(SPF1.0)を使用するとき、バージョン情報は以下のように記載します。
+
+\begin{verbatim}
+v=spf1
+\end{verbatim}
+
+\paragraph{SenderID}
+SenderIDの場合、バージョン情報は以下のように記載します。
+
+\begin{verbatim}
+v=spf2.0
+\end{verbatim}
+
+SenderIDのバージョン情報には、mfromおｔpreというオプションがあります。mfromはエンベローブのFrom:の情報も含む、という意味で、SPF1.0相当の動作となります。praはヘッダ情報から取得したPRAを参照する、という意味です。SPF2.0でオプションを省略した場合、mfromとpraの両方が暗黙の内にあるものととして扱われます。
+
+\begin{verbatim}
+v=spf2.0/mfrom,pra
+\end{verbatim}
+
+もしSenderIDに限った上位法としたい場合は、以下のように記載します。
+
+\begin{verbatim}
+v=spf2.0/pra
+\end{verbatim}
+
+
+\subsubsection{定義部分}
+
+定義部分は、モディファイアもしくはディレクティブと呼ばれるものが記述されます。
+
+ディレクティブは、クオリファイ後メカニズムという二つの部分で構成されています。たとえば、先程の例で、メールサーバの存在を記述した+ip4:192.168.100.1という定義で、先頭の＋がクオリファイア、そこから続くip4:192.168.100.1がメカニズムとなります。
+
+モディファイアは、別ドメイン（のDNS)への転送指定、認証ができなかった場合の理由が記載されているドメイン（のDNS)の提示など、例外的な処理をあらわします。
+
+\subsection{SPF定義部のディレクティブ}
+
+SPFの定義部分は、クオリファイアをとる場合は、クオリファイアの後にメカニズムを記載し、必要な情報を記載します。省略時は、Pass画ある者として扱います。ディレクティブは、4種類のクオリファイアと、7種類のメカニズムの組み合わせで表現されます。
+
+\subsubsection{クオリファイア}
+
+\begin{tabular}{c|c|l}
+ + & Pass & 定義にマッチするホストからメール送信が行われる(認証成功)\\\hline
+ - & Fall & 定義にマッチするホストからメール送信は行われない(認証失敗)\\\hline
+ ~ & SoftFall & 定義にマッチしても認証できないメールが存在する\\\hline
+ ? & Neutral & 認証情報を公開しない\\\hline
+\end{tabular}
+
+
+SoftFallはわかりにくいですが、もし定義にマッチしても、認証できないメールの可能性があるから落としても構わない、という用な意味になります。SoftFall苦い等するホストからのメールを受け取るかどうかは、受信側で判断します。
+
+\subsubsection{メカニズム}
+
+メカニズムには、以下のようなものがあります。
+
+\paragraph{all}
+\begin{verbatim}
+all
+\end{verbatim}
+全てのホストにマッチします。all以降の記述は、モディファイアのexpを覗いて無視されます。基本的に、一番最後の定義部として、allを使うと考えて良いでしょう。
+
+\paragraph{include}
+\begin{verbatim}
+include:ドメインスペック
+\end{verbatim}
+ドメインスペックに書かれたドメインのSPFを読み出して、その内容をincludeメカニズムがある場所に展開します。負荷分散と雨に、SPF情報を提供するためのDNSを置区場合に使用します。includeで指定した先で、SPFが参照できなければエラーとなります。
+
+例として、GoogleのSPF情報には、このような定義があります。
+
+\begin{verbatim}
+"v=spf1 include:_spf.google.com ~all"
+\end{verbatim}
+
+\paragraph{a}
+\begin{verbatim}
+a:ドメインスペック
+\end{verbatim}
+ドメインスペックのドメインで、IPアドレスが、DNSに記載されたAレコードのいずれかであればマッチします。IPv6で接続しているの場合は、AAAAレコードでマッチするものがないか判定します。
+
+\paragraph{mx}
+\begin{verbatim}
+mx:ドメインスペック
+\end{verbatim}
+ドメインスペックのドメインの、MXに記載されているホストを名前解決したときのAレコードにマッチします。IPv6で接続している場合は、AAAAレコードを参照います。そのドドメイン内のMXにマッチすると覚えればよいでしょう。
+
+\paragraph{ptr}
+\begin{verbatim}
+ptr:ドメインスペック
+\end{verbatim}
+ホストのIPアドレスを逆引きし得て得たホスト名が、ドメインスペックのドメインの権威DNSの正引きで解決でき、それがアクセス元のIPアドレスと一致するとき、マッチします。
+
+DNSの参照回数が増え、参照先となる権威DNSの付加をますことになるため、SPFでの使用は推奨されていません。
+
+\paragraph{exists}
+\begin{verbatim}
+exists：ドメインスペック
+\end{verbatim}
+ドメインスペックのドメイン名でAクエリを発行し、応答があればマッチします。AレコードもしくはAAAAレコードの内容は問いません。
+
+\paragraph{ip4}
+\begin{verbatim}
+ip4:ホストアドレスもしくはCIDR形式のネットワークアドレス
+\end{verbatim}
+
+接続してきたホストのIPv4ホストアドレスもしくはネットワークアドレスが一致すればマッチします。
+
+\paragraph{ip6}
+\begin{verbatim}
+ip6:ホストアドレスもしくはネットワークプレフィックス
+\end{verbatim}
+接続してきたホストのIPv6ホストアドレスもしくはネットワークプレフィックスが一致したらマッチします。
+
+
+\subsubsection{モディファイア}
+モディファイアには、redirectとexpの二つがあります。
+
+\paragraph{redirect}
+\begin{verbatim}
+redirect:ドメインスペック
+\end{verbatim}
+
+redirectモディファイアは、ドメインスペックに記載されたドメインのSPFを参照することを指示します。includメカニズムとの違いは、参照すべきSPFそのものを、ドメインスペックで記載された先のSPFに置き換えるということです。そのため、redirectを使う場合は、以下のようにredirectモディファイアのみを書きます。
+もし、redirectで指定された先にSPFが無ければ、エラーになります。
+
+以下の例では、SPFとして、ドメインutx.exampleの権威DNSに書かれたSPFを使用する、という意味です。
+\begin{verbatim}
+"v=sfp1 redirect:utx.example"
+\end{verbatim}
+
+\paragraph{exp}
+\begin{verbatim}
+exp:ドメインスペック
+\end{verbatim}
+
+例外として、allの後に書いても機能するモディファイアです。ドメインスペックに書かれたドメインのTXTレコードに、接続を拒否した理由など、メッセージを書きます。SMTP接続を拒否したときのエラーメッセージを返すことを想定したモディファイアです。
+以下の例では、エラーメッセージのTXTレコードを置くためのサブドメインerrorを置き、SMTP接続を拒否されたときのエラーメッセージはそちらを参照するような設定となります。
+
+\begin{verbatim}
+"v=spf1 mx ~all exp:error.otonoki.example"
+\end{verbatim}

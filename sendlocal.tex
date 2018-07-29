@@ -191,7 +191,7 @@ relay_domains = $mydestination
 たとえば、192.168.1.0/24のネットワークアドレスを持つクライアントと、ローカルホストからメールを出したい場合は、以下のように設定してください。
 
 \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
-# メール送信に使うクライアントのネットワークアドレスを書く このアドレスは例
+# メール送信に使うクライアントのネットワークアドレスを書く
 mynetworks = 192.168.1.0/24, 127.0.0.0/8
 #mynetworks = $config_directory/mynetworks
 #mynetworks = hash:$config_directory/network_table
@@ -385,7 +385,7 @@ EOT
 chika@mail: % 
 \end{verbatim}
 
-mail(1)を、引数無しでJッこうすると対話モードになります。もしメールスプールにメールが届いていれば、未読メールの一覧が表示されます。
+mail(1)を、引数無しで実行すると対話モードになります。もしメールスプールにメールが届いていれば、未読メールの一覧が表示されます。
 
 \begin{verbatim}
 chika@mail: % mail
